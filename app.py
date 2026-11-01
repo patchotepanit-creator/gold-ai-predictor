@@ -9,11 +9,11 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from datetime import datetime, timedelta
 
-st.set_page_config(page_title="Gold AI Trader", page_icon="\ud83e\udd47", layout="wide")
+st.set_page_config(page_title="Gold AI Trader", page_icon=":bar_chart:", layout="wide")
 
-st.title("\ud83e\udd47 AI Gold Day-to-Day Trader")
+st.title("AI Gold Day-to-Day Trader")
 st.markdown("""
-**Educational tool only \u2014 not financial advice.**  
+**Educational tool only — not financial advice.**  
 Uses technical analysis + macro factors (DXY, Silver, VIX, Oil) to analyze gold and forecast short-term moves.
 """)
 
@@ -21,7 +21,7 @@ Uses technical analysis + macro factors (DXY, Silver, VIX, Oil) to analyze gold 
 st.sidebar.header("Settings")
 lookback = st.sidebar.slider("Lookback days", 200, 1000, 400)
 forecast_horizon = st.sidebar.slider("Forecast horizon (days)", 1, 30, 5)
-retrain = st.sidebar.button("\ud83d\udd04 Retrain & Refresh")
+retrain = st.sidebar.button("Retrain & Refresh")
 
 @st.cache_data(ttl=3600)
 def fetch_gold_history():
@@ -118,22 +118,28 @@ def train_predict(df, horizon=5):
     macro_cols = [c for c in df.columns if c.endswith("_ret") or c in ["dxy", "silver", "vix", "oil"]]
     feature_cols += [c for c in macro_cols if c in df.columns]
     feature_cols = [c for c in feature_cols if c in df.columns]
+
     df = df.copy()
     df["target"] = df["close"].shift(-horizon)
     df = df.dropna().reset_index(drop=True)
+
     if len(df) < 50:
         return None, None, None, None, None
+
     X = df[feature_cols]
     y = df["target"]
     split = int(len(df) * 0.8)
     model = RandomForestRegressor(n_estimators=150, random_state=42, n_jobs=-1)
     model.fit(X.iloc[:split], y.iloc[:split])
+
     pred_test = model.predict(X.iloc[split:])
     mae = mean_absolute_error(y.iloc[split:], pred_test)
     r2 = r2_score(y.iloc[split:], pred_test)
+
     next_pred = model.predict(X.iloc[[-1]])[0]
     return model, next_pred, mae, r2, feature_cols
 
+# Load data
 gold_raw = fetch_gold_history()
 if gold_raw is None or len(gold_raw) < 50:
     st.error("Could not load gold data.")
@@ -157,16 +163,18 @@ price = live if live else current
 delta = next_pred - price if next_pred else 0
 delta_pct = (delta / price * 100) if price else 0
 
+# Metrics
 col1, col2, col3, col4 = st.columns(4)
 col1.metric("Current Gold", f"${price:,.2f}")
 col2.metric(f"{forecast_horizon}-Day Forecast", f"${next_pred:,.2f}" if next_pred else "N/A")
 col3.metric("Expected Move", f"${delta:+.2f}", f"{delta_pct:+.2f}%")
-signal = "\ud83d\udfe2 BULLISH" if delta > 0 else "\ud83d\udd34 BEARISH"
+signal = "BULLISH" if delta > 0 else "BEARISH"
 col4.metric("Signal", signal)
 
 if mae:
-    st.caption(f"Hold-out MAE: ${mae:.1f} | R\u00b2: {r2:.3f}")
+    st.caption(f"Hold-out MAE: ${mae:.1f} | R2: {r2:.3f}")
 
+# Charts
 tab1, tab2, tab3 = st.tabs(["Price + Forecast", "Technical Analysis", "Macro Factors"])
 
 with tab1:
@@ -208,4 +216,4 @@ with tab3:
         st.warning("Macro data unavailable at the moment.")
 
 st.markdown("---")
-st.caption("Data: xaus.com (gold) + Yahoo Finance (DXY, Silver, VIX, Oil) \u2022 Model: Random Forest \u2022 Educational use only")
+st.caption("Data: xaus.com (gold) + Yahoo Finance (DXY, Silver, VIX, Oil) • Model: Random Forest • Educational use only")
