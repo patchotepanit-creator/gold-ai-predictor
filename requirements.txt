@@ -7,3 +7,4 @@ requests
 yfinance
 alpaca-py
 streamlit-autorefresh
+feedparser
